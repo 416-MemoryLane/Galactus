@@ -1,39 +1,39 @@
 import express from "express";
-import { google } from "googleapis";
+import JWT from "jsonwebtoken";
+import bcrypt from "bcrypt";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
+import { User } from "./models/Schemas.mjs";
 dotenv.config();
 
 const app = express();
 app.use(express.json());
 const port = 3000;
 
-const oauth2Client = new google.auth.OAuth2(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET,
-  "http://localhost:3000/auth/callback"
-);
+app.post("/login", async (req, res) => {
+  const {
+    body: { username, password },
+  } = req;
 
-function getGoogleAuthURL() {
-  /*
-   * Generate a url that asks permissions to the user's email and profile
-   */
-  const scopes = ["https://www.googleapis.com/auth/userinfo.email"];
+  const hash = bcrypt.hashSync(password, 10);
+  let user = await User.findOne({ username });
+  let message = `${username} successfully logged in`;
 
-  return oauth2Client.generateAuthUrl({
-    access_type: "offline",
-    prompt: "consent",
-    scope: scopes, // If you only need one scope you can pass it as string
+  if (user) {
+    if (!bcrypt.compareSync(password, user.password)) {
+      return res.status(403).send({ message: "incorrect password" });
+    }
+  } else {
+    user = new User({ username, password: hash });
+    await user.save();
+    message = `Account with username ${username} successfully created`;
+  }
+
+  res.send({
+    username: user.username,
+    token: "TOKEN",
+    message,
   });
-}
-
-// open in browser https://gist.github.com/hyg/9c4afcd91fe24316cbf0
-app.get("/auth/login", (req, res) => {
-  res.send(getGoogleAuthURL());
-});
-
-app.get("/auth/callback", (req, res) => {
-  res.send("logged in");
 });
 
 app.get("/sync", (req, res) => {
