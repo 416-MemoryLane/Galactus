@@ -7,9 +7,9 @@ const userSchema = new Schema({
 
 const albumSchema = new Schema({
   albumName: String,
-  authorizedUsers: [String],
   createdBy: String,
+  authorizedUsers: [String],
 });
 
 export const User = model("User", userSchema);
-export const Album = model("Album", userSchema);
+export const Album = model("Album", albumSchema);
