@@ -36,7 +36,7 @@ app.post("/login", async (req, res) => {
 
   res.send({
     username: user.username,
-    token: jwt.sign({ username }, process.env.JWT_TOKEN),
+    token: jwt.sign({ username, multiaddr }, process.env.JWT_TOKEN),
     message,
   });
 });
