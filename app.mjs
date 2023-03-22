@@ -2,7 +2,6 @@ import express from "express";
 import jwt from "jsonwebtoken";
 import { compareSync, hashSync } from "bcrypt";
 import mongoose from "mongoose";
-import redis from "redis";
 import dotenv from "dotenv";
 import { Album, User } from "./models/Schemas.mjs";
 dotenv.config();
@@ -11,17 +10,14 @@ const app = express();
 app.use(express.json());
 const port = 3000;
 
-// docker run -p 6379:6379 -it redis/redis-stack-server:latest
-const redisClient = redis.createClient();
-
-redisClient.on("error", (err) => {
-  console.log("Error " + err);
-});
-
 app.post("/login", async (req, res) => {
   const {
-    body: { username, password },
+    body: { username, password, multiaddr },
   } = req;
+
+  if (!username || !password || !multiaddr) {
+    return res.status(400).send(`username, password, and multiaddr required`);
+  }
 
   let user = await User.findOne({ username });
   let message = `${username} successfully logged in`;
@@ -30,8 +26,10 @@ app.post("/login", async (req, res) => {
     if (!compareSync(password, user.password)) {
       return res.status(403).send({ message: "incorrect password" });
     }
+    user.multiaddr = multiaddr;
+    await user.save();
   } else {
-    user = new User({ username, password: hashSync(password, 10) });
+    user = new User({ username, password: hashSync(password, 10), multiaddr });
     await user.save();
     message = `Account with username ${username} successfully created`;
   }
@@ -62,23 +60,20 @@ const authenticatedRoute = (req, res, next) => {
 
 app.post("/sync", authenticatedRoute, async (req, res) => {
   const {
-    body: { username, multiaddr, peerId },
+    body: { username },
   } = req;
 
   try {
-    await redisClient.set(username, multiaddr, {
-      EX: 60,
-    });
-
     const authorizedAlbums = await Album.find({ authorizedUsers: username });
 
     const result = await Promise.all(
       authorizedAlbums.map(
         async ({ id, albumName, authorizedUsers, createdBy }) => {
           const userMultiaddrs = await Promise.all(
-            authorizedUsers.map(
-              async (username) => await redisClient.get(username)
-            )
+            authorizedUsers.map(async (username) => {
+              const user = await User.findOne({ username });
+              return user.multiaddr;
+            })
           );
           return {
             albumId: id,
@@ -101,6 +96,16 @@ app.post("/add_album", authenticatedRoute, async (req, res) => {
     const {
       body: { albumName, username, authorizedUsers },
     } = req;
+
+    const alreadyExists = await Album.find({
+      $and: [{ albumName }, { createdBy: username }],
+    });
+
+    if (alreadyExists.length) {
+      return res.status(500).send({
+        error: `You've already created an album with the name '${albumName}'`,
+      });
+    }
 
     const newAlbum = new Album({
       albumName,
@@ -154,9 +159,6 @@ app.get("/users", authenticatedRoute, async (req, res) => {
   try {
     await mongoose.connect(process.env.ATLAS_URI);
     console.log("Connected to MongoDB");
-
-    await redisClient.connect();
-    console.log("Connected to Redis cache");
 
     app.listen(port, () => {
       console.log(`Galactus running on port ${port}`);

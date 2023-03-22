@@ -3,6 +3,7 @@ import { Schema, model } from "mongoose";
 const userSchema = new Schema({
   username: String,
   password: String,
+  multiaddr: String
 });
 
 const albumSchema = new Schema({
