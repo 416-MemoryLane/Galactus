@@ -123,6 +123,33 @@ app.post("/add_album", authenticatedRoute, async (req, res) => {
   }
 });
 
+app.patch("/update_album", authenticatedRoute, async (req, res) => {
+  try {
+    const {
+      body: { albumName, username, authorizedUsers },
+    } = req;
+
+    const album = await Album.findOne({
+      $and: [{ albumName }, { createdBy: username }],
+    });
+
+    if (!album) {
+      return res.status(404).send({
+        error: `Cannot find album '${albumName}'`,
+      });
+    }
+
+    album.authorizedUsers = authorizedUsers;
+    await album.save();
+
+    return res.status(200).send({
+      message: `Album ${albumName} successfully updated`,
+    });
+  } catch (err) {
+    return res.status(500).send({ error: err });
+  }
+});
+
 app.delete("/delete_album", authenticatedRoute, async (req, res) => {
   const {
     query: { albumId, username },
