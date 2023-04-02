@@ -75,7 +75,7 @@ app.post("/sync", authenticatedRoute, async (req, res) => {
 
     const result = await Promise.all(
       authorizedAlbums.map(
-        async ({ id, albumName, authorizedUsers, createdBy }) => {
+        async ({ uuid, albumName, authorizedUsers, createdBy }) => {
           const userMultiaddrs = await Promise.all(
             authorizedUsers.map(async (username) => {
               const user = await User.findOne({ username });
@@ -83,7 +83,7 @@ app.post("/sync", authenticatedRoute, async (req, res) => {
             })
           );
           return {
-            albumId: id,
+            albumId: uuid,
             albumName,
             authorizedUsers: userMultiaddrs.filter((addr) => !!addr),
             createdBy,
@@ -101,7 +101,7 @@ app.post("/sync", authenticatedRoute, async (req, res) => {
 app.post("/add_album", authenticatedRoute, async (req, res) => {
   try {
     const {
-      body: { albumName, username, authorizedUsers },
+      body: { albumName, username, authorizedUsers, uuid },
     } = req;
 
     const alreadyExists = await Album.find({
@@ -118,6 +118,7 @@ app.post("/add_album", authenticatedRoute, async (req, res) => {
       albumName,
       createdBy: username,
       authorizedUsers,
+      uuid,
     });
 
     await newAlbum.save();

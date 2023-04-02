@@ -10,6 +10,7 @@ const albumSchema = new Schema({
   albumName: String,
   createdBy: String,
   authorizedUsers: [String],
+  uuid: String
 });
 
 export const User = model("User", userSchema);
