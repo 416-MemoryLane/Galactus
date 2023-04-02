@@ -3,11 +3,13 @@ import jwt from "jsonwebtoken";
 import { compareSync, hashSync } from "bcrypt";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
+import cors from "cors";
 import { Album, User } from "./models/Schemas.mjs";
 dotenv.config();
 
 const app = express();
 app.use(express.json());
+app.use(cors());
 const port = process.env.PORT || 3000;
 
 app.post("/login", async (req, res) => {
@@ -15,8 +17,8 @@ app.post("/login", async (req, res) => {
     body: { username, password, multiaddr },
   } = req;
 
-  if (!username || !password || !multiaddr) {
-    return res.status(400).send(`username, password, and multiaddr required`);
+  if (!username || !password) {
+    return res.status(400).send(`username, password required`);
   }
 
   let user = await User.findOne({ username });
@@ -26,10 +28,15 @@ app.post("/login", async (req, res) => {
     if (!compareSync(password, user.password)) {
       return res.status(403).send({ message: "incorrect password" });
     }
-    user.multiaddr = multiaddr;
-    await user.save();
+    if (multiaddr) {
+      user.multiaddr = multiaddr;
+      await user.save();
+    }
   } else {
-    user = new User({ username, password: hashSync(password, 10), multiaddr });
+    user = new User({ username, password: hashSync(password, 10) });
+    if (multiaddr) {
+      user.multiaddr = multiaddr;
+    }
     await user.save();
     message = `Account with username ${username} successfully created`;
   }
