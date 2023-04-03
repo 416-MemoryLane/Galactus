@@ -160,21 +160,21 @@ app.patch("/update_album", authenticatedRoute, async (req, res) => {
 
 app.delete("/delete_album", authenticatedRoute, async (req, res) => {
   const {
-    query: { albumId, username },
+    query: { uuid, username },
   } = req;
   try {
-    const album = await Album.findById(albumId);
+    const album = await Album.findOne({ uuid });
     if (!album) {
       return res
         .status(404)
-        .send({ message: `Album with ID "${albumId}" not found` });
+        .send({ message: `Album with uuid "${uuid}" not found` });
     }
     if (username === album.createdBy) {
       await album.deleteOne();
       return res.status(200).send({ message: "ok" });
     }
     return res.status(403).send({
-      message: `You are not authorized to delete album with ID ${albumId}`,
+      message: `You are not authorized to delete album with ID ${uuid}`,
     });
   } catch (err) {
     return res.status(500).send({ error: err });
