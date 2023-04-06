@@ -158,7 +158,7 @@ app.patch("/update_album", authenticatedRoute, async (req, res) => {
   }
 });
 
-app.delete("/delete_album", authenticatedRoute, async (req, res) => {
+app.patch("/leave_album", authenticatedRoute, async (req, res) => {
   const {
     query: { uuid, username },
   } = req;
@@ -169,13 +169,13 @@ app.delete("/delete_album", authenticatedRoute, async (req, res) => {
         .status(404)
         .send({ message: `Album with uuid "${uuid}" not found` });
     }
-    if (username === album.createdBy) {
-      await album.deleteOne();
-      return res.status(200).send({ message: "ok" });
-    }
-    return res.status(403).send({
-      message: `You are not authorized to delete album with ID ${uuid}`,
-    });
+    album.authorizedUsers = album.authorizedUsers.filter(
+      (user) => user !== username
+    );
+    await album.save();
+    return res
+      .status(200)
+      .send({ message: "You've been removed from album" + album.albumName });
   } catch (err) {
     return res.status(500).send({ error: err });
   }
